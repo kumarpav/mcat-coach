@@ -136,6 +136,15 @@
     .success-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
     .success-details { font-size: 0.82rem; color: rgba(255,255,255,0.4); line-height: 1.7; }
 
+    /* ── Flashcards ── */
+    .flashcard-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 0.9rem 1rem; margin-bottom: 0.6rem; }
+    .flashcard-q { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.55rem; line-height: 1.45; }
+    .flashcard-a { font-size: 0.81rem; color: rgba(255,255,255,0.58); line-height: 1.6; padding-top: 0.55rem; border-top: 1px solid rgba(255,255,255,0.06); }
+    .flashcard-tag { display: inline-block; margin-top: 0.45rem; font-size: 0.65rem; color: rgba(79,156,249,0.55); background: rgba(79,156,249,0.08); padding: 0.1rem 0.4rem; border-radius: 4px; }
+    .flashcard-modal-body { overflow-y: auto; flex: 1; padding: 0 0.25rem; max-height: 60vh; }
+    .flashcard-dl-bar { position: sticky; bottom: 0; background: #131929; padding: 0.85rem 0 0; border-top: 1px solid rgba(255,255,255,0.07); display: flex; justify-content: space-between; align-items: center; }
+    .flashcard-count { font-size: 0.78rem; color: rgba(255,255,255,0.3); }
+
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
@@ -170,6 +179,17 @@
       <div class="icon">🧬</div>
       <p>Upload a screenshot from any MCAT practice site to get started.</p>
     </div>
+  </div>
+</div>
+
+<!-- Flashcard modal -->
+<div class="modal-overlay" id="flashcard-modal">
+  <div class="modal" style="width:560px;max-width:96vw;display:flex;flex-direction:column;gap:0">
+    <div class="modal-title">
+      <span>🃏 Anki Flashcards</span>
+      <button class="modal-close" onclick="closeFlashcardModal()">✕</button>
+    </div>
+    <div class="flashcard-modal-body" id="flashcard-modal-body"></div>
   </div>
 </div>
 
@@ -365,6 +385,92 @@ const DEMO_INSIGHTS = [
   "Your CARS score of 67% has room to grow — practice active reading by summarizing each paragraph's main argument before answering questions, and avoid bringing in outside knowledge.",
 ];
 
+const DEMO_FLASHCARDS = [
+  // Electrochemistry
+  {front:"What is the relationship between ΔG° and standard cell potential (E°cell)?", back:"ΔG° = −nFE°cell. n = moles of electrons transferred; F = 96,485 C/mol. Positive E°cell → negative ΔG° → spontaneous reaction.", tags:"MCAT::Chem_Phys::Electrochemistry"},
+  {front:"In a galvanic cell, which electrode is the anode and which is the cathode?", back:"Anode = oxidation (loses e⁻, negative electrode). Cathode = reduction (gains e⁻, positive electrode). Mnemonic: AN OX, RED CAT.", tags:"MCAT::Chem_Phys::Electrochemistry"},
+  {front:"How does the Nernst equation modify E°cell under non-standard conditions?", back:"E = E° − (0.0592/n) × log Q  (at 25 °C). As Q increases (reaction proceeds), E decreases until equilibrium where E = 0 and Q = K.", tags:"MCAT::Chem_Phys::Electrochemistry"},
+  {front:"What is the key difference between a galvanic and an electrolytic cell?", back:"Galvanic: spontaneous, generates electricity (E > 0, ΔG < 0). Electrolytic: non-spontaneous, requires external electricity (E < 0, ΔG > 0). Both have oxidation at anode, reduction at cathode.", tags:"MCAT::Chem_Phys::Electrochemistry"},
+  // Enzyme Kinetics
+  {front:"What does a HIGH Km value indicate about an enzyme-substrate relationship?", back:"High Km = low affinity (needs more substrate to reach ½Vmax). Low Km = high affinity. Km is the [S] at which v = Vmax/2.", tags:"MCAT::Biochem::Enzyme_Kinetics"},
+  {front:"How does competitive inhibition change Km and Vmax?", back:"Competitive: apparent Km INCREASES, Vmax UNCHANGED. Can be overcome with excess substrate. Inhibitor competes with substrate for the active site.", tags:"MCAT::Biochem::Enzyme_Kinetics"},
+  {front:"How does non-competitive inhibition change Km and Vmax?", back:"Non-competitive: Km UNCHANGED, Vmax DECREASES. Cannot be overcome with more substrate. Inhibitor binds allosteric site regardless of substrate occupancy.", tags:"MCAT::Biochem::Enzyme_Kinetics"},
+  {front:"On a Lineweaver-Burk plot, how do you distinguish competitive from non-competitive inhibition?", back:"Competitive: same y-intercept (1/Vmax unchanged), different x-intercept (Km changes). Non-competitive: same x-intercept (Km unchanged), different y-intercept (Vmax decreases).", tags:"MCAT::Biochem::Enzyme_Kinetics"},
+  // Acid-Base Chemistry
+  {front:"What is the Henderson-Hasselbalch equation and when is it used?", back:"pH = pKa + log([A⁻]/[HA]). Used for buffer solutions. Buffer is most effective within pH = pKa ± 1. At pH = pKa exactly, [acid] = [conjugate base].", tags:"MCAT::Chem_Phys::Acid_Base"},
+  {front:"How do you calculate the pH of a weak acid solution?", back:"Set up ICE table: Ka = [H⁺][A⁻]/[HA]. Approximate: [H⁺] ≈ √(Ka × C) when Ka << C. Then pH = −log[H⁺].", tags:"MCAT::Chem_Phys::Acid_Base"},
+  {front:"What makes a good buffer, and when does a buffer fail?", back:"Good buffer: weak acid + its conjugate base, pH near pKa. Fails when one component is exhausted (all acid consumed by base, or all conjugate base consumed by acid). Buffer capacity is highest at pH = pKa.", tags:"MCAT::Chem_Phys::Acid_Base"},
+  {front:"What is the isoelectric point (pI) of an amino acid and how is it calculated?", back:"pI = net charge of zero. For simple amino acids: pI = (pKa1 + pKa2) / 2. Below pI → positive charge; above pI → negative charge. At pI, amino acid does not migrate in an electric field.", tags:"MCAT::Chem_Phys::Acid_Base"},
+  // Thermodynamics
+  {front:"Under what ΔH and ΔS conditions is a reaction always spontaneous, and always non-spontaneous?", back:"Always spontaneous: ΔH < 0 and ΔS > 0 (ΔG always negative). Always non-spontaneous: ΔH > 0 and ΔS < 0. Temperature-dependent otherwise. ΔG = ΔH − TΔS.", tags:"MCAT::Chem_Phys::Thermodynamics"},
+  {front:"What is the difference between ΔG° and ΔG, and which determines spontaneity?", back:"ΔG° = standard free energy (1M, 1 atm, 25°C). ΔG = ΔG° + RT ln Q. ΔG (not ΔG°) determines spontaneity under actual conditions. At equilibrium: ΔG = 0, so ΔG° = −RT ln K.", tags:"MCAT::Chem_Phys::Thermodynamics"},
+  {front:"How does entropy change across phases and for reactions that change moles of gas?", back:"ΔS: solid < liquid << gas. Reactions that increase moles of gas have ΔS > 0. Dissolving usually increases entropy. Entropy increases with temperature for a given phase.", tags:"MCAT::Chem_Phys::Thermodynamics"},
+  {front:"What is Hess's Law and how is it used?", back:"The enthalpy of a reaction equals the sum of enthalpies of any series of steps that give the same overall reaction. ΔH is a state function — path independent. Reverse a reaction → flip sign of ΔH. Multiply by n → multiply ΔH by n.", tags:"MCAT::Chem_Phys::Thermodynamics"},
+];
+
+let flashcards = null;
+
+function openFlashcardModal() {
+  document.getElementById('flashcard-modal').classList.add('open');
+}
+function closeFlashcardModal() {
+  document.getElementById('flashcard-modal').classList.remove('open');
+}
+
+async function generateFlashcards() {
+  openFlashcardModal();
+  const body = document.getElementById('flashcard-modal-body');
+  body.innerHTML = `<div class="upload-status"><div class="spinner"></div><div class="status-label">Generating flashcards for your weak topics…</div></div>`;
+
+  if (isDemoMode) {
+    flashcards = DEMO_FLASHCARDS;
+    renderFlashcards();
+    return;
+  }
+  try {
+    const res = await apiFetch('/flashcards');
+    const data = await res.json();
+    flashcards = data.flashcards;
+    renderFlashcards();
+  } catch (e) {
+    body.innerHTML = `<div class="upload-status"><div class="status-label" style="color:#e05252">Failed to generate flashcards. Try again.</div></div>`;
+  }
+}
+
+function renderFlashcards() {
+  const body = document.getElementById('flashcard-modal-body');
+  if (!flashcards || flashcards.length === 0) {
+    body.innerHTML = `<div class="upload-status"><div class="status-label">Not enough data to generate flashcards yet.</div></div>`;
+    return;
+  }
+  body.innerHTML = `
+    ${flashcards.map((c, i) => `
+      <div class="flashcard-item">
+        <div class="flashcard-q">${c.front}</div>
+        <div class="flashcard-a">${c.back}</div>
+        <span class="flashcard-tag">${c.tags}</span>
+      </div>`).join('')}
+    <div class="flashcard-dl-bar">
+      <span class="flashcard-count">${flashcards.length} cards</span>
+      <div style="display:flex;gap:0.5rem">
+        <button class="btn-ghost" onclick="closeFlashcardModal()">Close</button>
+        <button class="btn-primary" onclick="downloadFlashcards()">⬇ Download for Anki</button>
+      </div>
+    </div>`;
+}
+
+function downloadFlashcards() {
+  if (!flashcards) return;
+  const header = '#separator:tab\n#html:false\n#columns:Front\tBack\tTags\n';
+  const rows = flashcards.map(c => `${c.front}\t${c.back}\t${c.tags}`).join('\n');
+  const blob = new Blob([header + rows], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mcat-weak-topics.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 function enterDemo() {
   isDemoMode = true;
   sessions = DEMO_SESSIONS;
@@ -522,6 +628,16 @@ function renderDashboard() {
       </div>
       <div id="insights-body">
         <div class="insights-placeholder">Click "Generate tips" to get personalized study recommendations based on your data.</div>
+      </div>
+    </div>
+
+    <div class="insights-card">
+      <div class="insights-header">
+        <div class="card-title" style="margin-bottom:0">Anki flashcards</div>
+        <button class="btn-ghost" onclick="generateFlashcards()">🃏 Generate cards</button>
+      </div>
+      <div style="font-size:0.79rem;color:rgba(255,255,255,0.25);line-height:1.6;margin-top:0.4rem">
+        Generate targeted flashcards for your weakest topics — ready to import directly into Anki.
       </div>
     </div>`;
 

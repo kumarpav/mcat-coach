@@ -270,3 +270,51 @@ Return ONLY a JSON array of 4 strings. Each tip should be specific to their data
     text = re.sub(r'^```(?:json)?\s*', '', text)
     text = re.sub(r'\s*```$', '', text)
     return {"insights": json.loads(text)}
+
+
+@app.get("/flashcards")
+def get_flashcards(db: Session = Depends(get_db), token: str = Depends(get_token)):
+    analytics = get_analytics(db, token)
+    if analytics["total_questions"] == 0:
+        return {"flashcards": [], "topics_covered": []}
+
+    weak_topics = analytics["weak_topics"][:5]
+
+    wrong_qs = db.query(QuestionResult).filter(
+        QuestionResult.token == token,
+        QuestionResult.is_correct == False
+    ).all()
+    wrong_by_topic = {}
+    for q in wrong_qs:
+        t = q.topic or "Unknown"
+        wrong_by_topic[t] = wrong_by_topic.get(t, 0) + 1
+
+    prompt = f"""You are generating targeted MCAT Anki flashcards for a student based on their practice test weak spots.
+
+Weakest topics (lowest accuracy first):
+{json.dumps(weak_topics, indent=2)}
+
+Most missed topics (by wrong answer count):
+{json.dumps(dict(sorted(wrong_by_topic.items(), key=lambda x: x[1], reverse=True)[:6]), indent=2)}
+
+Generate exactly 4 flashcards for each of the top 4 weakest topics (16 cards total).
+Each card must target a specific concept, mechanism, or fact that MCAT students commonly miss in that topic.
+
+Rules:
+- Front: A clear, specific question (not vague like "Explain enzyme kinetics")
+- Back: Concise answer with the key fact, formula, or distinction. Max 3 sentences or a short list.
+- Tags: Use format "MCAT::<Section>::<Topic>" with underscores for spaces
+
+Return ONLY a valid JSON array:
+[{{"front": "...", "back": "...", "tags": "MCAT::Biochem::Enzyme_Kinetics"}}]"""
+
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    text = response.content[0].text.strip()
+    text = re.sub(r'^```(?:json)?\s*', '', text)
+    text = re.sub(r'\s*```$', '', text)
+    flashcards = json.loads(text)
+    return {"flashcards": flashcards, "topics_covered": [t["topic"] for t in weak_topics]}
