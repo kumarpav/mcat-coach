@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCAT Coach</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e1a; color: #e8eaf0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Header ── */
+    header { display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; height: 52px; background: #0d1220; border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
+    .logo { font-size: 1rem; font-weight: 800; letter-spacing: -0.3px; color: #fff; display: flex; align-items: center; gap: 0.5rem; }
+    .logo-icon { font-size: 1.2rem; }
+    .btn-primary { background: #4f9cf9; color: #fff; border: none; border-radius: 8px; padding: 0.45rem 0.9rem; font-size: 0.83rem; font-weight: 600; cursor: pointer; transition: background 0.12s; }
+    .btn-primary:hover { background: #3a87e8; }
+    .btn-ghost { background: transparent; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 0.4rem 0.8rem; font-size: 0.8rem; cursor: pointer; transition: all 0.12s; }
+    .btn-ghost:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+
+    /* ── Layout ── */
+    .layout { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left panel ── */
+    .left-panel { width: 280px; flex-shrink: 0; border-right: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; background: #0d1220; }
+    .panel-header { padding: 0.9rem 1rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
+    .panel-label { font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.8px; }
+    .sessions-scroll { flex: 1; overflow-y: auto; padding: 0.5rem; }
+
+    .session-card { padding: 0.7rem 0.8rem; border-radius: 9px; cursor: pointer; transition: background 0.1s; margin-bottom: 0.25rem; border: 1px solid transparent; }
+    .session-card:hover { background: rgba(255,255,255,0.04); }
+    .session-card.active { background: rgba(79,156,249,0.1); border-color: rgba(79,156,249,0.22); }
+    .session-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.3rem; }
+    .session-date { font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.7); }
+    .session-score { font-size: 0.78rem; font-weight: 700; }
+    .session-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+    .badge { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; }
+    .empty-sessions { text-align: center; color: rgba(255,255,255,0.2); padding: 3rem 1rem; font-size: 0.82rem; line-height: 1.8; }
+    .empty-sessions .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+
+    /* ── Right panel ── */
+    .right-panel { flex: 1; overflow-y: auto; padding: 1.5rem; }
+
+    /* ── Stat cards ── */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+    .stat-card { background: #131929; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 1rem 1.1rem; }
+    .stat-label { font-size: 0.7rem; color: rgba(255,255,255,0.35); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 0.4rem; }
+    .stat-value { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
+    .stat-sub { font-size: 0.72rem; color: rgba(255,255,255,0.3); margin-top: 0.25rem; }
+
+    /* ── Sections ── */
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .card { background: #131929; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 1.1rem 1.2rem; }
+    .card-title { font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 1rem; }
+
+    .section-row { margin-bottom: 0.75rem; }
+    .section-row-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.3rem; }
+    .section-name { font-size: 0.82rem; font-weight: 600; }
+    .section-pct { font-size: 0.82rem; font-weight: 700; }
+    .section-bar-bg { height: 6px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+    .section-bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+
+    .topic-row { display: flex; align-items: center; justify-content: space-between; padding: 0.45rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); gap: 0.5rem; }
+    .topic-row:last-child { border-bottom: none; }
+    .topic-name { font-size: 0.8rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topic-count { font-size: 0.7rem; color: rgba(255,255,255,0.3); flex-shrink: 0; }
+    .topic-pct { font-size: 0.78rem; font-weight: 700; flex-shrink: 0; width: 38px; text-align: right; }
+
+    /* ── Trend chart ── */
+    .trend-card { background: #131929; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+    .chart-empty { text-align: center; color: rgba(255,255,255,0.2); font-size: 0.82rem; padding: 2rem; }
+
+    /* ── Insights ── */
+    .insights-card { background: #131929; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+    .insights-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .insight-item { display: flex; gap: 0.7rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.83rem; line-height: 1.55; color: rgba(255,255,255,0.8); }
+    .insight-item:last-child { border-bottom: none; }
+    .insight-num { color: #4f9cf9; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; margin-top: 0.1rem; }
+    .insights-placeholder { text-align: center; color: rgba(255,255,255,0.25); font-size: 0.82rem; padding: 1rem 0; }
+
+    /* ── Session detail ── */
+    .detail-header { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem; }
+    .detail-back { background: rgba(255,255,255,0.06); border: none; border-radius: 8px; padding: 0.4rem 0.75rem; color: rgba(255,255,255,0.5); font-size: 0.8rem; cursor: pointer; transition: all 0.12s; flex-shrink: 0; margin-top: 0.1rem; }
+    .detail-back:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .detail-title { flex: 1; }
+    .detail-name { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.3px; }
+    .detail-meta { font-size: 0.78rem; color: rgba(255,255,255,0.35); margin-top: 0.2rem; }
+    .detail-score-big { font-size: 2rem; font-weight: 800; }
+
+    .questions-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .questions-table th { text-align: left; font-size: 0.68rem; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.6px; padding: 0 0.75rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .questions-table td { padding: 0.55rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+    .questions-table tr:last-child td { border-bottom: none; }
+    .q-result { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; }
+    .q-correct { background: rgba(76,175,125,0.18); color: #4caf7d; }
+    .q-wrong { background: rgba(224,82,82,0.18); color: #e05252; }
+    .answer-pill { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+    .answer-user { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+    .answer-correct { background: rgba(76,175,125,0.2); color: #4caf7d; }
+    .time-cell { color: rgba(255,255,255,0.3); font-size: 0.75rem; }
+
+    /* ── Empty dashboard ── */
+    .empty-dashboard { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; text-align: center; color: rgba(255,255,255,0.25); gap: 0.75rem; }
+    .empty-dashboard .icon { font-size: 3rem; }
+    .empty-dashboard p { font-size: 0.88rem; line-height: 1.7; max-width: 280px; }
+
+    /* ── Upload modal ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #131929; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; width: 480px; max-width: 95vw; padding: 1.5rem; }
+    .modal-title { font-size: 1rem; font-weight: 800; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; }
+    .modal-close { background: none; border: none; color: rgba(255,255,255,0.35); font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 0 0.2rem; }
+    .modal-close:hover { color: #fff; }
+
+    .drop-zone { border: 2px dashed rgba(79,156,249,0.3); border-radius: 12px; padding: 2.5rem 1rem; text-align: center; cursor: pointer; transition: all 0.15s; position: relative; }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #4f9cf9; background: rgba(79,156,249,0.05); }
+    .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .drop-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .drop-label { font-size: 0.85rem; color: rgba(255,255,255,0.5); }
+    .drop-sub { font-size: 0.75rem; color: rgba(255,255,255,0.25); margin-top: 0.3rem; }
+
+    .preview-img { width: 100%; max-height: 240px; object-fit: contain; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 1rem; display: block; }
+    .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1rem; }
+
+    .upload-status { text-align: center; padding: 2rem 0; }
+    .spinner { width: 36px; height: 36px; border: 3px solid rgba(79,156,249,0.2); border-top-color: #4f9cf9; border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 1rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status-label { font-size: 0.88rem; color: rgba(255,255,255,0.5); }
+
+    .success-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .success-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .success-details { font-size: 0.82rem; color: rgba(255,255,255,0.4); line-height: 1.7; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="logo-icon">🧬</span> MCAT Coach</div>
+  <button class="btn-primary" onclick="openUploadModal()">+ Upload screenshot</button>
+</header>
+
+<div class="layout">
+  <div class="left-panel">
+    <div class="panel-header">
+      <span class="panel-label" id="sessions-label">Tests</span>
+    </div>
+    <div class="sessions-scroll" id="sessions-list">
+      <div class="empty-sessions">
+        <div class="icon">📋</div>
+        Loading...
+      </div>
+    </div>
+  </div>
+  <div class="right-panel" id="right-panel">
+    <div class="empty-dashboard">
+      <div class="icon">🧬</div>
+      <p>Upload a screenshot from any MCAT practice site to get started.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Upload modal -->
+<div class="modal-overlay" id="upload-modal">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Upload test screenshot</span>
+      <button class="modal-close" onclick="closeUploadModal()">✕</button>
+    </div>
+    <div id="modal-body">
+      <!-- steps rendered here -->
+    </div>
+  </div>
+</div>
+
+<script>
+const SECTION_COLORS = {
+  'Bio/Biochem': '#4caf7d',
+  'Chem/Phys':   '#4f9cf9',
+  'CARS':        '#b07df5',
+  'Psych/Soc':   '#f5a623',
+  'Full Length': '#e8a44a',
+  'Mixed':       '#aaa',
+  'Unknown':     '#666',
+};
+
+function sectionColor(s) { return SECTION_COLORS[s] || '#888'; }
+function accuracyColor(pct) {
+  if (pct >= 75) return '#4caf7d';
+  if (pct >= 60) return '#d4c44a';
+  return '#e05252';
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y, m, day] = d.split('-');
+  return new Date(+y, +m - 1, +day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtSecs(s) {
+  if (!s) return null;
+  return s >= 60 ? `${Math.floor(s/60)}m ${s%60}s` : `${s}s`;
+}
+
+// ── Token ──────────────────────────────────────────────────────────────────
+function getToken() {
+  let t = localStorage.getItem('mcat_token');
+  if (!t) { t = crypto.randomUUID(); localStorage.setItem('mcat_token', t); }
+  return t;
+}
+const TOKEN = getToken();
+
+async function apiFetch(path, opts = {}) {
+  return fetch(path, { ...opts, headers: { 'X-User-Token': TOKEN, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let sessions = [];
+let analytics = null;
+let selectedSessionId = null;
+let insights = null;
+let uploadStep = 1;
+let uploadImageB64 = null;
+let uploadMediaType = 'image/jpeg';
+
+// ── Init ───────────────────────────────────────────────────────────────────
+async function init() {
+  await loadData();
+}
+
+async function loadData() {
+  const [sRes, aRes] = await Promise.all([
+    apiFetch('/sessions'),
+    apiFetch('/analytics'),
+  ]);
+  sessions = await sRes.json();
+  analytics = await aRes.json();
+  renderSessionsList();
+  if (selectedSessionId) {
+    renderSessionDetail(selectedSessionId);
+  } else {
+    renderDashboard();
+  }
+}
+
+// ── Sessions list ──────────────────────────────────────────────────────────
+function renderSessionsList() {
+  const el = document.getElementById('sessions-list');
+  document.getElementById('sessions-label').textContent = `${sessions.length} test${sessions.length !== 1 ? 's' : ''}`;
+  if (sessions.length === 0) {
+    el.innerHTML = `<div class="empty-sessions"><div class="icon">📋</div>No tests yet.<br>Upload a screenshot to begin.</div>`;
+    return;
+  }
+  el.innerHTML = sessions.map(s => {
+    const color = sectionColor(s.section);
+    const scoreColor = accuracyColor(s.accuracy);
+    const active = s.id === selectedSessionId ? ' active' : '';
+    return `<div class="session-card${active}" data-id="${s.id}" onclick="selectSession(${s.id})">
+      <div class="session-card-top">
+        <span class="session-date">${fmtDate(s.date)}</span>
+        <span class="session-score" style="color:${scoreColor}">${s.accuracy}%</span>
+      </div>
+      <div class="session-meta">
+        <span class="badge" style="background:${color}22;color:${color}">${s.section}</span>
+        <span class="badge" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">${s.source}</span>
+        <span style="font-size:0.68rem;color:rgba(255,255,255,0.25)">${s.correct}/${s.total_questions} correct</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+function renderDashboard() {
+  selectedSessionId = null;
+  renderSessionsList();
+  const el = document.getElementById('right-panel');
+  if (!analytics || analytics.total_questions === 0) {
+    el.innerHTML = `<div class="empty-dashboard">
+      <div class="icon">🧬</div>
+      <p>Upload your first practice test screenshot to see your analytics dashboard.</p>
+      <button class="btn-primary" onclick="openUploadModal()" style="margin-top:0.5rem">+ Upload screenshot</button>
+    </div>`;
+    return;
+  }
+
+  const weakSection = analytics.by_section[0];
+  const bestSection = analytics.by_section[analytics.by_section.length - 1];
+
+  el.innerHTML = `
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Overall accuracy</div>
+        <div class="stat-value" style="color:${accuracyColor(analytics.accuracy)}">${analytics.accuracy}%</div>
+        <div class="stat-sub">${analytics.total_correct} / ${analytics.total_questions} correct</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Questions answered</div>
+        <div class="stat-value">${analytics.total_questions}</div>
+        <div class="stat-sub">across ${analytics.sessions_count} test${analytics.sessions_count !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Needs most work</div>
+        <div class="stat-value" style="font-size:1.1rem;padding-top:0.3rem">${weakSection ? weakSection.section : '—'}</div>
+        <div class="stat-sub">${weakSection ? weakSection.accuracy + '% accuracy' : ''}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Strongest section</div>
+        <div class="stat-value" style="font-size:1.1rem;padding-top:0.3rem">${bestSection ? bestSection.section : '—'}</div>
+        <div class="stat-sub">${bestSection ? bestSection.accuracy + '% accuracy' : ''}</div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-title">Accuracy by section</div>
+        ${analytics.by_section.length === 0
+          ? '<div style="color:rgba(255,255,255,0.25);font-size:0.82rem">No section data yet</div>'
+          : analytics.by_section.map(s => `
+            <div class="section-row">
+              <div class="section-row-top">
+                <span class="section-name" style="color:${sectionColor(s.section)}">${s.section}</span>
+                <span class="section-pct" style="color:${accuracyColor(s.accuracy)}">${s.accuracy}%</span>
+              </div>
+              <div class="section-bar-bg">
+                <div class="section-bar-fill" style="width:${s.accuracy}%;background:${sectionColor(s.section)}"></div>
+              </div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.25);margin-top:0.2rem">${s.correct}/${s.questions} correct</div>
+            </div>`).join('')}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Needs work (by topic)</div>
+        ${analytics.weak_topics.length === 0
+          ? '<div style="color:rgba(255,255,255,0.25);font-size:0.82rem">Need more per-question data</div>'
+          : analytics.weak_topics.map(t => `
+            <div class="topic-row">
+              <span class="topic-name">${t.topic}</span>
+              <span class="topic-count">${t.correct}/${t.questions}</span>
+              <span class="topic-pct" style="color:${accuracyColor(t.accuracy)}">${t.accuracy}%</span>
+            </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="trend-card">
+      <div class="card-title">Score trend</div>
+      ${renderTrendChart(analytics.trend)}
+    </div>
+
+    <div class="insights-card">
+      <div class="insights-header">
+        <div class="card-title" style="margin-bottom:0">AI study tips</div>
+        <button class="btn-ghost" onclick="loadInsights()">✨ Generate tips</button>
+      </div>
+      <div id="insights-body">
+        <div class="insights-placeholder">Click "Generate tips" to get personalized study recommendations based on your data.</div>
+      </div>
+    </div>`;
+
+  if (insights) renderInsights();
+}
+
+function renderInsights() {
+  const el = document.getElementById('insights-body');
+  if (!el) return;
+  if (!insights || insights.length === 0) {
+    el.innerHTML = '<div class="insights-placeholder">Not enough data to generate tips yet.</div>';
+    return;
+  }
+  el.innerHTML = insights.map((tip, i) => `
+    <div class="insight-item">
+      <span class="insight-num">${i + 1}</span>
+      <span>${tip}</span>
+    </div>`).join('');
+}
+
+async function loadInsights() {
+  const el = document.getElementById('insights-body');
+  if (el) el.innerHTML = '<div class="insights-placeholder"><div class="spinner" style="width:24px;height:24px;margin:0.5rem auto"></div></div>';
+  const res = await apiFetch('/insights');
+  const data = await res.json();
+  insights = data.insights;
+  renderInsights();
+}
+
+// ── Trend chart ────────────────────────────────────────────────────────────
+function renderTrendChart(trend) {
+  if (!trend || trend.length < 2) {
+    return `<div class="chart-empty">Upload at least 2 tests to see your score trend.</div>`;
+  }
+  const W = 520, H = 110;
+  const pad = { top: 12, right: 16, bottom: 28, left: 36 };
+  const iW = W - pad.left - pad.right;
+  const iH = H - pad.top - pad.bottom;
+
+  const pts = trend.map((t, i) => ({
+    x: pad.left + (i / (trend.length - 1)) * iW,
+    y: pad.top + (1 - t.accuracy / 100) * iH,
+    ...t,
+  }));
+
+  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaD = pathD + ` L${pts[pts.length-1].x.toFixed(1)},${(pad.top + iH).toFixed(1)} L${pts[0].x.toFixed(1)},${(pad.top + iH).toFixed(1)} Z`;
+
+  const gridLines = [0, 25, 50, 75, 100].map(pct => {
+    const y = pad.top + (1 - pct / 100) * iH;
+    return `<line x1="${pad.left}" y1="${y.toFixed(1)}" x2="${W - pad.right}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+            <text x="${(pad.left - 5).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" fill="rgba(255,255,255,0.2)" font-size="9" font-family="sans-serif">${pct}%</text>`;
+  }).join('');
+
+  const xLabels = pts.map(p => {
+    const d = new Date(p.date + 'T00:00:00');
+    const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `<text x="${p.x.toFixed(1)}" y="${(H - 4).toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="9" font-family="sans-serif">${label}</text>`;
+  }).join('');
+
+  const dots = pts.map(p =>
+    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${sectionColor(p.section)}" stroke="#131929" stroke-width="2"/>
+     <title>${p.section} • ${p.accuracy}% • ${fmtDate(p.date)}</title>`
+  ).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:${H}px;display:block">
+    <defs>
+      <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4f9cf9" stop-opacity="0.2"/>
+        <stop offset="100%" stop-color="#4f9cf9" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <path d="${areaD}" fill="url(#areaGrad)"/>
+    <path d="${pathD}" fill="none" stroke="#4f9cf9" stroke-width="2" stroke-linejoin="round"/>
+    ${dots}
+    ${xLabels}
+  </svg>`;
+}
+
+// ── Session detail ─────────────────────────────────────────────────────────
+async function selectSession(id) {
+  selectedSessionId = id;
+  renderSessionsList();
+  await renderSessionDetail(id);
+}
+
+async function renderSessionDetail(id) {
+  const res = await apiFetch(`/sessions/${id}`);
+  const s = await res.json();
+  const el = document.getElementById('right-panel');
+  const color = sectionColor(s.section);
+  const scoreColor = accuracyColor(s.accuracy);
+
+  const questionsHtml = s.questions.length === 0
+    ? `<div style="color:rgba(255,255,255,0.25);font-size:0.82rem;padding:1rem 0">No per-question data extracted — screenshot may have only shown summary stats.</div>`
+    : `<table class="questions-table">
+        <thead><tr>
+          <th>#</th><th>Topic</th><th>Your answer</th><th>Correct</th><th>Time</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${s.questions.map(q => `<tr>
+            <td style="color:rgba(255,255,255,0.3);font-size:0.75rem">${q.number ?? '—'}</td>
+            <td>${q.topic}</td>
+            <td>${q.user_answer ? `<span class="answer-pill answer-user">${q.user_answer}</span>` : '—'}</td>
+            <td>${q.correct_answer ? `<span class="answer-pill answer-correct">${q.correct_answer}</span>` : '—'}</td>
+            <td class="time-cell">${fmtSecs(q.time_spent) || '—'}</td>
+            <td><div class="q-result ${q.is_correct ? 'q-correct' : 'q-wrong'}">${q.is_correct ? '✓' : '✗'}</div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+
+  el.innerHTML = `
+    <div class="detail-header">
+      <button class="detail-back" onclick="renderDashboard()">← Dashboard</button>
+      <div class="detail-title">
+        <div class="detail-name">${s.source} — ${s.section}</div>
+        <div class="detail-meta">${fmtDate(s.date)} · ${s.total_questions} questions</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div class="detail-score-big" style="color:${scoreColor}">${s.accuracy}%</div>
+        <div style="font-size:0.75rem;color:rgba(255,255,255,0.3)">${s.correct}/${s.total_questions} correct</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-title">Question breakdown</div>
+      ${questionsHtml}
+    </div>
+    <div style="text-align:right">
+      <button class="btn-ghost" onclick="confirmDelete(${s.id})" style="color:rgba(224,82,82,0.7);border-color:rgba(224,82,82,0.2)">Delete test</button>
+    </div>`;
+}
+
+async function confirmDelete(id) {
+  if (!confirm('Delete this test and all its question data?')) return;
+  await apiFetch(`/sessions/${id}`, { method: 'DELETE' });
+  selectedSessionId = null;
+  insights = null;
+  await loadData();
+}
+
+// ── Upload modal ───────────────────────────────────────────────────────────
+function openUploadModal() {
+  uploadStep = 1;
+  uploadImageB64 = null;
+  document.getElementById('upload-modal').classList.add('open');
+  renderModalStep();
+}
+
+function closeUploadModal() {
+  document.getElementById('upload-modal').classList.remove('open');
+}
+
+function renderModalStep() {
+  const body = document.getElementById('modal-body');
+  if (uploadStep === 1) {
+    body.innerHTML = `
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" accept="image/*" onchange="handleFileSelect(event)">
+        <div class="drop-icon">📸</div>
+        <div class="drop-label">Drop your screenshot here</div>
+        <div class="drop-sub">or click to browse · PNG, JPG, WebP</div>
+      </div>
+      <div style="font-size:0.75rem;color:rgba(255,255,255,0.2);margin-top:0.75rem;text-align:center">
+        Works with UWorld, Khan Academy, AAMC, Princeton Review, Kaplan, Blueprint, and more
+      </div>`;
+    const dz = document.getElementById('drop-zone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); handleFileDrop(e); });
+  } else if (uploadStep === 2) {
+    body.innerHTML = `
+      <img id="preview-img" class="preview-img" alt="Screenshot preview">
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="uploadStep=1;renderModalStep()">← Back</button>
+        <button class="btn-primary" onclick="analyzeScreenshot()">Analyze screenshot</button>
+      </div>`;
+    const img = document.getElementById('preview-img');
+    img.src = `data:${uploadMediaType};base64,${uploadImageB64}`;
+  } else if (uploadStep === 3) {
+    body.innerHTML = `
+      <div class="upload-status">
+        <div class="spinner"></div>
+        <div class="status-label">Analyzing screenshot with AI…</div>
+      </div>`;
+  } else if (uploadStep === 4) {
+    body.innerHTML = `
+      <div class="upload-status">
+        <div class="success-icon">✅</div>
+        <div class="success-title" id="success-title">Test uploaded!</div>
+        <div class="success-details" id="success-details"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="openUploadModal()">Upload another</button>
+        <button class="btn-primary" onclick="closeUploadModal()">Done</button>
+      </div>`;
+  }
+}
+
+function handleFileDrop(e) {
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  uploadMediaType = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = reader.result;
+    uploadImageB64 = result.split(',')[1];
+    uploadStep = 2;
+    renderModalStep();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyzeScreenshot() {
+  uploadStep = 3;
+  renderModalStep();
+  try {
+    const res = await apiFetch('/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ image_base64: uploadImageB64, media_type: uploadMediaType }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Parse failed');
+    }
+    const data = await res.json();
+    uploadStep = 4;
+    renderModalStep();
+    document.getElementById('success-title').textContent = `${data.source} — ${data.section}`;
+    document.getElementById('success-details').innerHTML =
+      `${fmtDate(data.date)}<br>${data.accuracy}% accuracy (${data.correct}/${data.total_questions} correct)<br>${data.questions_extracted} questions extracted`;
+    insights = null;
+    await loadData();
+  } catch (e) {
+    uploadStep = 2;
+    renderModalStep();
+    alert('Could not parse screenshot: ' + e.message);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
