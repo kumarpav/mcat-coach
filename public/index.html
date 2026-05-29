@@ -37,6 +37,12 @@
     .empty-sessions { text-align: center; color: rgba(255,255,255,0.2); padding: 3rem 1rem; font-size: 0.82rem; line-height: 1.8; }
     .empty-sessions .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
 
+    /* ── Demo banner ── */
+    .demo-banner { display: none; background: rgba(79,156,249,0.07); border-bottom: 1px solid rgba(79,156,249,0.15); padding: 0.65rem 1.25rem; font-size: 0.82rem; color: rgba(255,255,255,0.6); flex-shrink: 0; align-items: center; gap: 0.75rem; }
+    .demo-banner strong { color: #4f9cf9; }
+    .demo-dismiss { margin-left: auto; background: transparent; border: 1px solid rgba(79,156,249,0.3); color: #4f9cf9; border-radius: 6px; padding: 0.3rem 0.8rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .demo-dismiss:hover { background: rgba(79,156,249,0.1); }
+
     /* ── Right panel ── */
     .right-panel { flex: 1; overflow-y: auto; padding: 1.5rem; }
 
@@ -142,6 +148,11 @@
   <button class="btn-primary" onclick="openUploadModal()">+ Upload screenshot</button>
 </header>
 
+<div class="demo-banner" id="demo-banner">
+  <span>👋 <strong>Welcome to MCAT Coach!</strong> This is sample data from 6 practice tests — explore the analytics to see what your dashboard will look like as you log your own tests.</span>
+  <button class="demo-dismiss" onclick="dismissDemo()">Start tracking my scores →</button>
+</div>
+
 <div class="layout">
   <div class="left-panel">
     <div class="panel-header">
@@ -222,6 +233,159 @@ let insights = null;
 let uploadStep = 1;
 let uploadImageB64 = null;
 let uploadMediaType = 'image/jpeg';
+let isDemoMode = false;
+let demoDismissed = false;
+
+// ── Demo data ──────────────────────────────────────────────────────────────
+const DEMO_SESSIONS = [
+  { id:'d6', date:'2026-04-05', source:'AAMC',          section:'Bio/Biochem', total_questions:45, correct:40, accuracy:89 },
+  { id:'d5', date:'2026-03-28', source:'UWorld',         section:'Bio/Biochem', total_questions:45, correct:36, accuracy:80 },
+  { id:'d4', date:'2026-03-20', source:'UWorld',         section:'Psych/Soc',  total_questions:50, correct:38, accuracy:76 },
+  { id:'d3', date:'2026-03-14', source:'Blueprint',      section:'CARS',        total_questions:30, correct:20, accuracy:67 },
+  { id:'d2', date:'2026-03-08', source:'Khan Academy',   section:'Chem/Phys',  total_questions:44, correct:25, accuracy:57 },
+  { id:'d1', date:'2026-03-03', source:'UWorld',         section:'Bio/Biochem', total_questions:45, correct:32, accuracy:71 },
+];
+
+const DEMO_ANALYTICS = {
+  total_questions: 259, total_correct: 191, accuracy: 74, sessions_count: 6,
+  by_section: [
+    { section:'Chem/Phys',  questions:44,  correct:25,  accuracy:57 },
+    { section:'CARS',        questions:30,  correct:20,  accuracy:67 },
+    { section:'Psych/Soc',  questions:50,  correct:38,  accuracy:76 },
+    { section:'Bio/Biochem', questions:135, correct:108, accuracy:80 },
+  ],
+  weak_topics: [
+    { topic:'Electrochemistry',   questions:5, correct:1, accuracy:20 },
+    { topic:'Enzyme Kinetics',    questions:8, correct:3, accuracy:38 },
+    { topic:'Acid-Base Chemistry',questions:6, correct:3, accuracy:50 },
+    { topic:'Thermodynamics',     questions:6, correct:3, accuracy:50 },
+    { topic:'Optics & Light',     questions:4, correct:2, accuracy:50 },
+    { topic:'CARS: Humanities',   questions:5, correct:3, accuracy:60 },
+  ],
+  strong_topics: [
+    { topic:'Cell Biology',          questions:8, correct:8, accuracy:100 },
+    { topic:'Amino Acids',           questions:6, correct:6, accuracy:100 },
+    { topic:'Genetics',              questions:5, correct:5, accuracy:100 },
+    { topic:'Psychological Disorders',questions:4,correct:4, accuracy:100 },
+    { topic:'Research Methods',      questions:4, correct:4, accuracy:100 },
+  ],
+  trend: [
+    { session_id:'d1', date:'2026-03-03', section:'Bio/Biochem', source:'UWorld',       accuracy:71, correct:32, total:45 },
+    { session_id:'d2', date:'2026-03-08', section:'Chem/Phys',  source:'Khan Academy', accuracy:57, correct:25, total:44 },
+    { session_id:'d3', date:'2026-03-14', section:'CARS',        source:'Blueprint',    accuracy:67, correct:20, total:30 },
+    { session_id:'d4', date:'2026-03-20', section:'Psych/Soc',  source:'UWorld',       accuracy:76, correct:38, total:50 },
+    { session_id:'d5', date:'2026-03-28', section:'Bio/Biochem', source:'UWorld',       accuracy:80, correct:36, total:45 },
+    { session_id:'d6', date:'2026-04-05', section:'Bio/Biochem', source:'AAMC',         accuracy:89, correct:40, total:45 },
+  ],
+};
+
+const DEMO_SESSION_DETAILS = {
+  d1: { id:'d1', date:'2026-03-03', source:'UWorld', section:'Bio/Biochem', total_questions:45, correct:32, accuracy:71, notes:'', questions:[
+    {id:1,number:1, topic:'Enzyme Kinetics',    user_answer:'B',correct_answer:'D',is_correct:false,time_spent:82},
+    {id:2,number:2, topic:'Cell Biology',       user_answer:'A',correct_answer:'A',is_correct:true, time_spent:54},
+    {id:3,number:3, topic:'Amino Acids',        user_answer:'C',correct_answer:'C',is_correct:true, time_spent:61},
+    {id:4,number:4, topic:'DNA Replication',    user_answer:'B',correct_answer:'B',is_correct:true, time_spent:73},
+    {id:5,number:5, topic:'Enzyme Kinetics',    user_answer:'A',correct_answer:'C',is_correct:false,time_spent:95},
+    {id:6,number:6, topic:'Protein Structure',  user_answer:'D',correct_answer:'D',is_correct:true, time_spent:48},
+    {id:7,number:7, topic:'Cell Signaling',     user_answer:'B',correct_answer:'B',is_correct:true, time_spent:66},
+    {id:8,number:8, topic:'Metabolic Pathways', user_answer:'C',correct_answer:'A',is_correct:false,time_spent:88},
+    {id:9,number:9, topic:'Cell Biology',       user_answer:'A',correct_answer:'A',is_correct:true, time_spent:55},
+    {id:10,number:10,topic:'Enzyme Inhibition', user_answer:'D',correct_answer:'B',is_correct:false,time_spent:102},
+    {id:11,number:11,topic:'Genetics',          user_answer:'C',correct_answer:'C',is_correct:true, time_spent:59},
+    {id:12,number:12,topic:'Amino Acids',       user_answer:'B',correct_answer:'B',is_correct:true, time_spent:44},
+  ]},
+  d2: { id:'d2', date:'2026-03-08', source:'Khan Academy', section:'Chem/Phys', total_questions:44, correct:25, accuracy:57, notes:'', questions:[
+    {id:13,number:1, topic:'Electrochemistry',    user_answer:'A',correct_answer:'C',is_correct:false,time_spent:91},
+    {id:14,number:2, topic:'Acid-Base Chemistry', user_answer:'B',correct_answer:'D',is_correct:false,time_spent:78},
+    {id:15,number:3, topic:'Thermodynamics',      user_answer:'C',correct_answer:'C',is_correct:true, time_spent:65},
+    {id:16,number:4, topic:'Gas Laws',            user_answer:'A',correct_answer:'A',is_correct:true, time_spent:52},
+    {id:17,number:5, topic:'Electrochemistry',    user_answer:'D',correct_answer:'B',is_correct:false,time_spent:108},
+    {id:18,number:6, topic:'Optics & Light',      user_answer:'C',correct_answer:'A',is_correct:false,time_spent:87},
+    {id:19,number:7, topic:'Atomic Structure',    user_answer:'B',correct_answer:'B',is_correct:true, time_spent:61},
+    {id:20,number:8, topic:'Acid-Base Chemistry', user_answer:'A',correct_answer:'A',is_correct:true, time_spent:70},
+    {id:21,number:9, topic:'Electrochemistry',    user_answer:'C',correct_answer:'D',is_correct:false,time_spent:114},
+    {id:22,number:10,topic:'Thermodynamics',      user_answer:'B',correct_answer:'D',is_correct:false,time_spent:96},
+    {id:23,number:11,topic:'Gas Laws',            user_answer:'D',correct_answer:'D',is_correct:true, time_spent:58},
+    {id:24,number:12,topic:'Atomic Structure',    user_answer:'A',correct_answer:'A',is_correct:true, time_spent:63},
+  ]},
+  d3: { id:'d3', date:'2026-03-14', source:'Blueprint', section:'CARS', total_questions:30, correct:20, accuracy:67, notes:'', questions:[
+    {id:25,number:1, topic:'CARS: Humanities',     user_answer:'B',correct_answer:'B',is_correct:true, time_spent:95},
+    {id:26,number:2, topic:'CARS: Humanities',     user_answer:'A',correct_answer:'C',is_correct:false,time_spent:112},
+    {id:27,number:3, topic:'CARS: Social Sciences',user_answer:'D',correct_answer:'D',is_correct:true, time_spent:88},
+    {id:28,number:4, topic:'CARS: Social Sciences',user_answer:'B',correct_answer:'B',is_correct:true, time_spent:76},
+    {id:29,number:5, topic:'CARS: Social Sciences',user_answer:'C',correct_answer:'A',is_correct:false,time_spent:103},
+    {id:30,number:6, topic:'CARS: Natural Sciences',user_answer:'A',correct_answer:'A',is_correct:true,time_spent:84},
+    {id:31,number:7, topic:'CARS: Natural Sciences',user_answer:'D',correct_answer:'D',is_correct:true,time_spent:91},
+    {id:32,number:8, topic:'CARS: Natural Sciences',user_answer:'B',correct_answer:'C',is_correct:false,time_spent:99},
+    {id:33,number:9, topic:'CARS: Humanities',     user_answer:'C',correct_answer:'C',is_correct:true, time_spent:82},
+    {id:34,number:10,topic:'CARS: Social Sciences',user_answer:'A',correct_answer:'A',is_correct:true, time_spent:90},
+  ]},
+  d4: { id:'d4', date:'2026-03-20', source:'UWorld', section:'Psych/Soc', total_questions:50, correct:38, accuracy:76, notes:'', questions:[
+    {id:35,number:1, topic:'Social Stratification',   user_answer:'A',correct_answer:'A',is_correct:true, time_spent:58},
+    {id:36,number:2, topic:'Cognitive Development',   user_answer:'C',correct_answer:'C',is_correct:true, time_spent:64},
+    {id:37,number:3, topic:'Sensation & Perception',  user_answer:'B',correct_answer:'D',is_correct:false,time_spent:79},
+    {id:38,number:4, topic:'Psychological Disorders', user_answer:'A',correct_answer:'A',is_correct:true, time_spent:55},
+    {id:39,number:5, topic:'Research Methods',        user_answer:'C',correct_answer:'C',is_correct:true, time_spent:61},
+    {id:40,number:6, topic:'Attitude & Behavior',     user_answer:'D',correct_answer:'B',is_correct:false,time_spent:85},
+    {id:41,number:7, topic:'Social Stratification',   user_answer:'B',correct_answer:'B',is_correct:true, time_spent:52},
+    {id:42,number:8, topic:'Neuroscience Basics',     user_answer:'A',correct_answer:'A',is_correct:true, time_spent:67},
+    {id:43,number:9, topic:'Cognitive Development',   user_answer:'D',correct_answer:'D',is_correct:true, time_spent:59},
+    {id:44,number:10,topic:'Psychological Disorders', user_answer:'C',correct_answer:'C',is_correct:true, time_spent:48},
+  ]},
+  d5: { id:'d5', date:'2026-03-28', source:'UWorld', section:'Bio/Biochem', total_questions:45, correct:36, accuracy:80, notes:'', questions:[
+    {id:45,number:1, topic:'Enzyme Kinetics',    user_answer:'C',correct_answer:'C',is_correct:true, time_spent:71},
+    {id:46,number:2, topic:'Cell Biology',       user_answer:'A',correct_answer:'A',is_correct:true, time_spent:52},
+    {id:47,number:3, topic:'Amino Acids',        user_answer:'B',correct_answer:'B',is_correct:true, time_spent:58},
+    {id:48,number:4, topic:'DNA Replication',    user_answer:'C',correct_answer:'C',is_correct:true, time_spent:65},
+    {id:49,number:5, topic:'Enzyme Kinetics',    user_answer:'D',correct_answer:'B',is_correct:false,time_spent:89},
+    {id:50,number:6, topic:'Protein Structure',  user_answer:'A',correct_answer:'A',is_correct:true, time_spent:49},
+    {id:51,number:7, topic:'Cell Signaling',     user_answer:'D',correct_answer:'D',is_correct:true, time_spent:61},
+    {id:52,number:8, topic:'Metabolic Pathways', user_answer:'B',correct_answer:'B',is_correct:true, time_spent:74},
+    {id:53,number:9, topic:'Genetics',           user_answer:'C',correct_answer:'C',is_correct:true, time_spent:56},
+    {id:54,number:10,topic:'Enzyme Inhibition',  user_answer:'A',correct_answer:'A',is_correct:true, time_spent:68},
+  ]},
+  d6: { id:'d6', date:'2026-04-05', source:'AAMC', section:'Bio/Biochem', total_questions:45, correct:40, accuracy:89, notes:'', questions:[
+    {id:55,number:1, topic:'Enzyme Kinetics',    user_answer:'B',correct_answer:'B',is_correct:true, time_spent:64},
+    {id:56,number:2, topic:'Cell Biology',       user_answer:'A',correct_answer:'A',is_correct:true, time_spent:51},
+    {id:57,number:3, topic:'Amino Acids',        user_answer:'C',correct_answer:'C',is_correct:true, time_spent:55},
+    {id:58,number:4, topic:'DNA Replication',    user_answer:'D',correct_answer:'D',is_correct:true, time_spent:60},
+    {id:59,number:5, topic:'Protein Structure',  user_answer:'A',correct_answer:'A',is_correct:true, time_spent:47},
+    {id:60,number:6, topic:'Cell Signaling',     user_answer:'B',correct_answer:'B',is_correct:true, time_spent:58},
+    {id:61,number:7, topic:'Metabolic Pathways', user_answer:'C',correct_answer:'C',is_correct:true, time_spent:66},
+    {id:62,number:8, topic:'Genetics',           user_answer:'A',correct_answer:'A',is_correct:true, time_spent:53},
+    {id:63,number:9, topic:'Enzyme Kinetics',    user_answer:'D',correct_answer:'D',is_correct:true, time_spent:70},
+    {id:64,number:10,topic:'Transcription',      user_answer:'B',correct_answer:'C',is_correct:false,time_spent:85},
+  ]},
+};
+
+const DEMO_INSIGHTS = [
+  "Electrochemistry is your weakest topic at 20% — dedicate 2-3 focused sessions to galvanic vs. electrolytic cells, Nernst equation, and standard reduction potentials before your next Chem/Phys block.",
+  "Your Bio/Biochem score jumped from 71% to 89% over five weeks — this shows your study approach is working. Apply the same spaced-repetition strategy to Chem/Phys, which is still sitting at 57%.",
+  "Enzyme Kinetics keeps tripping you up (38% accuracy across 8 questions). Focus on Michaelis-Menten graphs, competitive vs. non-competitive inhibition, and how pH affects enzyme activity.",
+  "Your CARS score of 67% has room to grow — practice active reading by summarizing each paragraph's main argument before answering questions, and avoid bringing in outside knowledge.",
+];
+
+function enterDemo() {
+  isDemoMode = true;
+  sessions = DEMO_SESSIONS;
+  analytics = DEMO_ANALYTICS;
+  document.getElementById('demo-banner').style.display = 'flex';
+  renderSessionsList();
+  renderDashboard();
+  selectSession('d1');
+}
+
+function dismissDemo() {
+  isDemoMode = false;
+  demoDismissed = true;
+  document.getElementById('demo-banner').style.display = 'none';
+  selectedSessionId = null;
+  sessions = [];
+  analytics = null;
+  insights = null;
+  renderSessionsList();
+  renderDashboard();
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
@@ -235,6 +399,11 @@ async function loadData() {
   ]);
   sessions = await sRes.json();
   analytics = await aRes.json();
+  if (sessions.length === 0 && !demoDismissed) {
+    enterDemo();
+    return;
+  }
+  isDemoMode = false;
   renderSessionsList();
   if (selectedSessionId) {
     renderSessionDetail(selectedSessionId);
@@ -254,8 +423,8 @@ function renderSessionsList() {
   el.innerHTML = sessions.map(s => {
     const color = sectionColor(s.section);
     const scoreColor = accuracyColor(s.accuracy);
-    const active = s.id === selectedSessionId ? ' active' : '';
-    return `<div class="session-card${active}" data-id="${s.id}" onclick="selectSession(${s.id})">
+    const active = s.id == selectedSessionId ? ' active' : '';
+    return `<div class="session-card${active}" data-id="${s.id}" onclick="selectSession('${s.id}')">
       <div class="session-card-top">
         <span class="session-date">${fmtDate(s.date)}</span>
         <span class="session-score" style="color:${scoreColor}">${s.accuracy}%</span>
@@ -374,6 +543,11 @@ function renderInsights() {
 }
 
 async function loadInsights() {
+  if (isDemoMode) {
+    insights = DEMO_INSIGHTS;
+    renderInsights();
+    return;
+  }
   const el = document.getElementById('insights-body');
   if (el) el.innerHTML = '<div class="insights-placeholder"><div class="spinner" style="width:24px;height:24px;margin:0.5rem auto"></div></div>';
   const res = await apiFetch('/insights');
@@ -437,7 +611,50 @@ function renderTrendChart(trend) {
 async function selectSession(id) {
   selectedSessionId = id;
   renderSessionsList();
-  await renderSessionDetail(id);
+  if (isDemoMode) {
+    renderDemoSessionDetail(id);
+  } else {
+    await renderSessionDetail(id);
+  }
+}
+
+function renderDemoSessionDetail(id) {
+  const s = DEMO_SESSION_DETAILS[id];
+  if (!s) return;
+  const el = document.getElementById('right-panel');
+  const scoreColor = accuracyColor(s.accuracy);
+  el.innerHTML = `
+    <div class="detail-header">
+      <button class="detail-back" onclick="renderDashboard()">← Dashboard</button>
+      <div class="detail-title">
+        <div class="detail-name">${s.source} — ${s.section}</div>
+        <div class="detail-meta">${fmtDate(s.date)} · ${s.total_questions} questions</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div class="detail-score-big" style="color:${scoreColor}">${s.accuracy}%</div>
+        <div style="font-size:0.75rem;color:rgba(255,255,255,0.3)">${s.correct}/${s.total_questions} correct</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-title">Question breakdown</div>
+      <table class="questions-table">
+        <thead><tr><th>#</th><th>Topic</th><th>Your answer</th><th>Correct</th><th>Time</th><th></th></tr></thead>
+        <tbody>
+          ${s.questions.map(q => `<tr>
+            <td style="color:rgba(255,255,255,0.3);font-size:0.75rem">${q.number}</td>
+            <td>${q.topic}</td>
+            <td><span class="answer-pill answer-user">${q.user_answer}</span></td>
+            <td><span class="answer-pill answer-correct">${q.correct_answer}</span></td>
+            <td class="time-cell">${fmtSecs(q.time_spent) || '—'}</td>
+            <td><div class="q-result ${q.is_correct ? 'q-correct' : 'q-wrong'}">${q.is_correct ? '✓' : '✗'}</div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="text-align:center;color:rgba(255,255,255,0.25);font-size:0.8rem;padding:0.5rem">
+      Upload your own screenshots to start tracking your real scores.
+      <button class="btn-primary" onclick="openUploadModal()" style="margin-left:0.75rem;font-size:0.78rem">+ Upload screenshot</button>
+    </div>`;
 }
 
 async function renderSessionDetail(id) {
@@ -592,6 +809,9 @@ async function analyzeScreenshot() {
     document.getElementById('success-title').textContent = `${data.source} — ${data.section}`;
     document.getElementById('success-details').innerHTML =
       `${fmtDate(data.date)}<br>${data.accuracy}% accuracy (${data.correct}/${data.total_questions} correct)<br>${data.questions_extracted} questions extracted`;
+    isDemoMode = false;
+    demoDismissed = true;
+    document.getElementById('demo-banner').style.display = 'none';
     insights = null;
     await loadData();
   } catch (e) {
